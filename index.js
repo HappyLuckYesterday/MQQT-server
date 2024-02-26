@@ -1,40 +1,42 @@
-// var mqtt = require('mqtt')
-// var client  = mqtt.connect('mqtt://localhost:1884')
+const mqtt = require('mqtt')
 
-// client.on('connect', function () {
-//   client.subscribe('process/state', function (err) {
-//     if (!err) {
-//       console.log("Subscribed to 'process/state' topic")
-//     }
-//   })
-// })
+const protocol = 'mqtt'
+const host = '100.99.99.8'
+const port = '1883'
+const clientId = `mqtt_${Math.random().toString(16).slice(3)}`
 
-// client.on('message', function (topic, message) {
-//   // message is Buffer
-//   console.log(message.toString())
-// })
+const connectUrl = `${protocol}://${host}:${port}`
 
-const express = require('express');
-const app = express();
-app.use(express.json());
+const client = mqtt.connect(connectUrl, {
+  clientId,
+  clean: true,
+  connectTimeout: 4000,
+  // username: 'emqx',
+  // password: 'public',
+  reconnectPeriod: 1000,
+})
 
-let clientStatuses = {};
+client.on('connect', () => {
+  console.log('Connected')
+})
 
-app.post('/report-status', (req, res) => {
-    let clientId = req.body.clientId;
-    let status = req.body.status;
+const topic = '/nodejs/mqtt'
 
-    // Store the status update
-    clientStatuses[clientId] = status;
+client.on('connect', () => {
+  console.log('Connected')
+  client.subscribe([topic], () => {
+    console.log(`Subscribe to topic '${topic}'`)
+  })
+})
 
-    console.log(`Received status from client ${clientId}: ${status}`);
-    res.send('Status update received');
-});
+client.on('message', (topic, payload) => {
+  console.log('Received Message:', topic, payload.toString())
+})
 
-app.get('/status', (req, res) => {
-    res.json(clientStatuses);
-});
-
-app.listen(3000, () => {
-    console.log('Server is running on port 3000');
-});
+client.on('connect', () => {
+  client.publish(topic, 'nodejs mqtt test', { qos: 0, retain: false }, (error) => {
+    if (error) {
+      console.error(error)
+    }
+  })
+})
